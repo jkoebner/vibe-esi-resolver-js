@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="css/style.css" media="screen" />
+</head>
+<body>
+  <div class="header">
+    <h2>ESI Resolver</h2>
+    <label class="toggle-switch">
+      <input type="checkbox" id="enableToggle">
+      <span class="slider"></span>
+    </label>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Custom Headers</div>
+    <div class="headers-container" id="headersContainer">
+      <div class="empty-headers">No custom headers</div>
+    </div>
+    <button class="add-header" id="addHeader">+ Add Header</button>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Statistics</div>
+    <div class="stats">
+      <div class="stat-row">
+        <span>Total ESI Tags:</span>
+        <span id="totalTags">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Successful:</span>
+        <span id="successfulTags">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Failed:</span>
+        <span id="failedTags">0</span>
+      </div>
+      
+      <div class="fragments-list" id="fragmentsList">
+        <div class="no-fragments">No ESI fragments processed yet</div>
+      </div>
+  <div class="footer">
+    <h3>Debug Logging</h2>
+    <label class="toggle-switch">
+      <input type="checkbox" id="enableLogging">
+      <span class="slider"></span>
+    </label>
+    </h3>
+  </div>
+
+  <script src="js/popup.js"></script>
+</body>
+</html>

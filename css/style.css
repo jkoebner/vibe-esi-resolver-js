@@ -1,0 +1,258 @@
+
+    body {
+      width: 350px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      margin: 0;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #fab900;
+    }
+    
+    .header h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-bottom: 8px;
+      border-top: 1px solid #fab900;
+    }
+    
+    .footer h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    
+    .section {
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .headers-container {
+      max-height: 120px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 40px;
+    }
+    
+    .header-row {
+      display: flex;
+      padding: 4px;
+      border-bottom: 1px solid #eee;
+      align-items: center;
+    }
+    
+    .header-row:last-child {
+      border-bottom: none;
+    }
+    
+    .header-input {
+      flex: 1;
+      padding: 4px;
+      border: 1px solid #ddd;
+      border-radius: 2px;
+      margin: 0 2px;
+      font-size: 12px;
+    }
+    
+    .remove-header {
+      background: #ff4444;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .remove-header:hover {
+      background: #cc0000;
+    }
+    
+    .add-header {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 4px;
+    }
+    
+    .add-header:hover {
+      background: #45a049;
+    }
+    
+    .stats {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .stat-row:last-child {
+      margin-bottom: 8px;
+    }
+    
+    .fragments-list {
+      max-height: 100px;
+      overflow-y: auto;
+      font-size: 12px;
+      margin-top: 8px;
+      border-top: 1px solid #ddd;
+      padding-top: 8px;
+    }
+    
+    .fragment-item {
+      padding: 4px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .fragment-item:last-child {
+      border-bottom: none;
+    }
+    
+    .fragment-url {
+      cursor: pointer;
+      flex: 1;
+      text-decoration: underline;
+      margin-right: 8px;
+    }
+    
+    .fragment-url:hover {
+      color: #0066cc;
+    }
+    
+    .fragment-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .jump-to-fragment {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 2px;
+      font-size: 12px;
+    }
+    
+    .jump-to-fragment:hover {
+      background: #f0f0f0;
+    }
+    
+    .fragment-status {
+      min-width: 16px;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .fragment-success {
+      color: #4CAF50;
+    }
+    
+    .fragment-error {
+      color: #ff4444;
+    }
+    
+    .clear-stats {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    
+    .clear-stats:hover {
+      background: #1976D2;
+    }
+
+    .no-fragments {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      padding: 8px;
+    }
+
+    .empty-headers {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      padding: 8px;
+    }

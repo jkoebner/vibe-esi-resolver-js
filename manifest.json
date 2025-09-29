@@ -1,0 +1,48 @@
+{
+  "manifest_version": 2,
+  "name": "ESI Resolver",
+  "version": "1.0.0",
+  "description": "Resolves Edge Side Include tags locally with statistics and custom headers",
+  "author": "Joel Köbner <jkoebner@eggs.de>",
+  "homepage_url": "https://github.com/jkoebner/vibe-esi-resolver-js",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "scripts": ["js/background.js"],
+    "persistent": false
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "ESI Resolver",
+    "default_icon": {
+      "16": "icons/icon16-on.png",
+      "48": "icons/icon48-on.png",
+      "128": "icons/icon128-on.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16-on.png",
+    "48": "icons/icon48-on.png", 
+    "128": "icons/icon128-on.png"
+  },
+
+  "developer": {
+    "name": "Joel Köbner",
+    "url": "https://eggsunimedia.com"
+  }
+}

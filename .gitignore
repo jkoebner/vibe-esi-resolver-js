@@ -1,0 +1,69 @@
+
+## .gitignore
+
+```gitignore
+# Browser extension artifacts
+*.crx
+*.xpi
+*.zip
+web-ext-artifacts/
+
+# Development files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Node.js (if using web-ext or other tools)
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+
+# Extension store files
+store-assets/
+screenshots/
+*.pem
+
+# Backup files
+*.bak
+*.backup
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Documentation drafts
+docs/drafts/
+*.draft.md
+
+# Personal notes
+notes.txt
+todo.txt
+NOTES.md
