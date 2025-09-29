@@ -100,7 +100,7 @@ To package the extension:
 
 ```bash
 # For Firefox
-zip -r esi-resolver.zip manifest.json popup.html popup.js content.js background.js *.png
+zip -r esi-resolver.zip manifest.json popup.html js/popup.js js/content.js js/background.js css/style.css icons/*.png
 mv esi-resolver.zip esi-resolver.xpi
 
 # For Chrome  
