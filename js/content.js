@@ -1,11 +1,38 @@
 // Firefox compatibility layer
 const browserAPI = (typeof browser !== 'undefined') ? browser : chrome;
 
-console.log('ESI Content script loading, browserAPI:', typeof browserAPI);
+// Debug logging utility
+let debugSettings = { esiEnabled: false, debugLogging: false };
+
+function debugLog(...args) {
+  if (debugSettings.esiEnabled && debugSettings.debugLogging) {
+    console.log(...args);
+  }
+}
+
+// Load debug settings
+async function loadDebugSettings() {
+  try {
+    const result = await browserAPI.storage.local.get(['esiEnabled', 'debugLogging']);
+    debugSettings.esiEnabled = result.esiEnabled !== false;
+    debugSettings.debugLogging = result.debugLogging || false;
+  } catch (e) {}
+}
+
+// Listen for storage changes to update debug settings
+browserAPI.storage.onChanged.addListener((changes) => {
+  if (changes.esiEnabled) debugSettings.esiEnabled = changes.esiEnabled.newValue;
+  if (changes.debugLogging) debugSettings.debugLogging = changes.debugLogging.newValue;
+});
+
+// Initialize debug settings
+loadDebugSettings().then(() => {
+  debugLog('ESI Content script loading, browserAPI:', typeof browserAPI);
+});
 
 class ESIProcessor {
   constructor() {
-    console.log('ESIProcessor constructor');
+    debugLog('ESIProcessor constructor');
     this.enabled = true;
     this.customHeaders = [];
     this.stats = {
@@ -16,27 +43,28 @@ class ESIProcessor {
     };
     this.fragmentCounter = 0;
     this.processedElements = new Set(); // Track processed elements
+    this.executeScripts = false;
     this.init();
   }
 
   async init() {
-    console.log('ESIProcessor init starting...');
+    debugLog('ESIProcessor init starting...');
     await this.loadSettings();
     this.loadStats();
     
-    console.log('ESI enabled:', this.enabled);
+    debugLog('ESI enabled:', this.enabled);
     if (this.enabled) {
-      console.log('Processing ESI...');
+      debugLog('Processing ESI...');
       setTimeout(() => {
         this.processESI();
       }, 100);
     } else {
-      console.log('ESI processing disabled');
+      debugLog('ESI processing disabled');
     }
 
     // Listen for messages from popup
     browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Content script received message:', request);
+      debugLog('Content script received message:', request);
       if (request.action === 'clearStats') {
         this.clearStats();
         sendResponse({ success: true });
@@ -49,10 +77,10 @@ class ESIProcessor {
 
     // Listen for storage changes
     browserAPI.storage.onChanged.addListener((changes, namespace) => {
-      console.log('Storage changed:', changes);
+      debugLog('Storage changed:', changes);
       if (changes.esiEnabled) {
         this.enabled = changes.esiEnabled.newValue;
-        console.log('ESI enabled changed to:', this.enabled);
+        debugLog('ESI enabled changed to:', this.enabled);
         if (this.enabled) {
           setTimeout(() => {
             this.processESI();
@@ -61,43 +89,56 @@ class ESIProcessor {
       }
       if (changes.customHeaders) {
         this.customHeaders = changes.customHeaders.newValue || [];
-        console.log('Custom headers changed to:', this.customHeaders);
+        debugLog('Custom headers changed to:', this.customHeaders);
+      }
+      if (changes.executeScripts) {
+        this.executeScripts = changes.executeScripts.newValue || false;
+        debugLog('Execute scripts changed to:', this.executeScripts);
       }
     });
   }
 
   async loadSettings() {
-    console.log('Loading settings...');
-    const result = await browserAPI.storage.local.get(['esiEnabled', 'customHeaders']);
+    debugLog('Loading settings...');
+    const result = await browserAPI.storage.local.get([
+      'esiEnabled', 
+      'customHeaders', 
+      'forwardHeaders', 
+      'forwardCookies',
+      'executeScripts'
+    ]);
     this.enabled = result.esiEnabled !== false;
     this.customHeaders = result.customHeaders || [];
-    console.log('Settings loaded - enabled:', this.enabled, 'headers:', this.customHeaders.length);
+    this.forwardHeaders = result.forwardHeaders || false;
+    this.forwardCookies = result.forwardCookies || false;
+    this.executeScripts = result.executeScripts || false;
+    debugLog('Settings loaded - enabled:', this.enabled, 'headers:', this.customHeaders.length, 'forward headers:', this.forwardHeaders, 'forward cookies:', this.forwardCookies, 'execute scripts:', this.executeScripts);
   }
 
   loadStats() {
-    console.log('Loading stats...');
+    debugLog('Loading stats...');
     const storageKey = `esiStats_${window.location.href}`;
     browserAPI.storage.local.get([storageKey]).then(result => {
       if (result[storageKey]) {
         this.stats = result[storageKey];
         this.fragmentCounter = Math.max(...this.stats.fragments.map(f => f.id || 0), 0);
-        console.log('Stats loaded:', this.stats);
+        debugLog('Stats loaded:', this.stats);
       } else {
-        console.log('No existing stats found');
+        debugLog('No existing stats found');
       }
     });
   }
 
   saveStats() {
     const storageKey = `esiStats_${window.location.href}`;
-    console.log('Saving stats with key:', storageKey, 'stats:', this.stats);
+    debugLog('Saving stats with key:', storageKey, 'stats:', this.stats);
     browserAPI.storage.local.set({
       [storageKey]: this.stats
     });
   }
 
   clearStats() {
-    console.log('Clearing stats...');
+    debugLog('Clearing stats...');
     this.stats = {
       total: 0,
       successful: 0,
@@ -110,10 +151,10 @@ class ESIProcessor {
   }
 
   jumpToFragment(fragmentId) {
-    console.log('Jumping to fragment:', fragmentId);
+    debugLog('Jumping to fragment:', fragmentId);
     const element = document.getElementById(`esi-fragment-${fragmentId}`);
     if (element) {
-      console.log('Found fragment element, scrolling...');
+      debugLog('Found fragment element, scrolling...');
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       element.style.outline = '3px solid #ff6600';
       element.style.outlineOffset = '2px';
@@ -122,7 +163,7 @@ class ESIProcessor {
         element.style.outlineOffset = '';
       }, 2000);
     } else {
-      console.log('Fragment element not found:', `esi-fragment-${fragmentId}`);
+      debugLog('Fragment element not found:', `esi-fragment-${fragmentId}`);
     }
   }
 
@@ -147,9 +188,9 @@ class ESIProcessor {
   }
 
   async processESI() {
-    console.log('=== STARTING ESI PROCESSING ===');
+    debugLog('=== STARTING ESI PROCESSING ===');
     if (!this.enabled) {
-      console.log('ESI processing disabled, skipping');
+      debugLog('ESI processing disabled, skipping');
       return;
     }
 
@@ -165,31 +206,31 @@ class ESIProcessor {
     // Finally process comments
     await this.processESIComments();
     
-    console.log('ESI processing complete, saving stats...');
+    debugLog('ESI processing complete, saving stats...');
     this.saveStats();
-    console.log('=== ESI PROCESSING FINISHED ===');
+    debugLog('=== ESI PROCESSING FINISHED ===');
   }
 
   async processESITryBlocks() {
-    console.log('--- Processing ESI Try Blocks ---');
+    debugLog('--- Processing ESI Try Blocks ---');
     
     const tryBlocks = document.querySelectorAll('esi\\:try, ESI\\:TRY');
-    console.log(`Found ${tryBlocks.length} ESI try blocks`);
+    debugLog(`Found ${tryBlocks.length} ESI try blocks`);
 
     for (const tryBlock of tryBlocks) {
       if (this.processedElements.has(tryBlock)) {
-        console.log('Try block already processed, skipping');
+        debugLog('Try block already processed, skipping');
         continue;
       }
 
-      console.log('Processing ESI try block:', tryBlock);
+      debugLog('Processing ESI try block:', tryBlock);
       
       // Find the esi:include inside the try block
       const includeTag = tryBlock.querySelector('esi\\:include, ESI\\:INCLUDE, esi-include, ESI-INCLUDE');
       if (includeTag) {
         const src = includeTag.getAttribute('src');
         if (src) {
-          console.log('Found include in try block with src:', src);
+          debugLog('Found include in try block with src:', src);
           this.processedElements.add(tryBlock);
           this.processedElements.add(includeTag); // Mark include as processed too
           await this.fetchAndReplaceESI(tryBlock, src, null, true); // true = is try block
@@ -199,7 +240,7 @@ class ESIProcessor {
   }
 
   async processStandaloneESITags() {
-    console.log('--- Processing Standalone ESI Tags ---');
+    debugLog('--- Processing Standalone ESI Tags ---');
     
     const selectors = [
       'esi\\:include',
@@ -212,7 +253,7 @@ class ESIProcessor {
     selectors.forEach(selector => {
       try {
         const tags = document.querySelectorAll(selector);
-        console.log(`Found ${tags.length} tags with selector: ${selector}`);
+        debugLog(`Found ${tags.length} tags with selector: ${selector}`);
         
         // Only process those that aren't inside try blocks and haven't been processed
         Array.from(tags).forEach(tag => {
@@ -221,18 +262,18 @@ class ESIProcessor {
           }
         });
       } catch (e) {
-        console.log(`Selector ${selector} failed:`, e);
+        debugLog(`Selector ${selector} failed:`, e);
       }
     });
 
-    console.log(`Found ${standaloneIncludes.length} standalone ESI includes`);
+    debugLog(`Found ${standaloneIncludes.length} standalone ESI includes`);
 
     for (const tag of standaloneIncludes) {
       if (this.processedElements.has(tag)) {
         continue; // Skip if already processed
       }
       
-      console.log('Processing standalone ESI tag:', tag);
+      debugLog('Processing standalone ESI tag:', tag);
       const src = tag.getAttribute('src');
       if (src) {
         this.processedElements.add(tag);
@@ -256,10 +297,10 @@ class ESIProcessor {
   }
 
   async processESIComments() {
-    console.log('--- Processing ESI Comments ---');
+    debugLog('--- Processing ESI Comments ---');
     
     if (!document.documentElement) {
-      console.log('Document element not available');
+      debugLog('Document element not available');
       return;
     }
     
@@ -280,19 +321,19 @@ class ESIProcessor {
       
       const comment = node.nodeValue;
       if (comment && (comment.includes('<esi:include') || comment.includes('<esi:try>'))) {
-        console.log('Found ESI comment:', comment.substring(0, 100) + '...');
+        debugLog('Found ESI comment:', comment.substring(0, 100) + '...');
         esiComments.push(node);
       }
     }
 
-    console.log(`Found ${esiComments.length} unprocessed ESI comments`);
+    debugLog(`Found ${esiComments.length} unprocessed ESI comments`);
 
     for (const commentNode of esiComments) {
       if (this.processedElements.has(commentNode)) {
         continue;
       }
       
-      console.log('Processing ESI comment...');
+      debugLog('Processing ESI comment...');
       this.processedElements.add(commentNode);
       await this.processESIComment(commentNode);
     }
@@ -300,14 +341,14 @@ class ESIProcessor {
 
   async processESIComment(commentNode) {
     const comment = commentNode.nodeValue;
-    console.log('Processing ESI comment:', comment.substring(0, 200) + '...');
+    debugLog('Processing ESI comment:', comment.substring(0, 200) + '...');
     
     // Handle ESI try blocks
     if (comment.includes('<esi:try>')) {
       const srcMatch = comment.match(/<esi:include[^>]+src=["']([^"']+)["'][^>]*>/);
       if (srcMatch) {
         const url = srcMatch[1];
-        console.log('Found ESI include in try comment with src:', url);
+        debugLog('Found ESI include in try comment with src:', url);
         await this.fetchAndReplaceESI(commentNode, url, comment, true);
       }
       return;
@@ -317,20 +358,20 @@ class ESIProcessor {
     const srcMatch = comment.match(/src=["']([^"']+)["']/);
     if (srcMatch) {
       const url = srcMatch[1];
-      console.log('Found ESI include in comment with src:', url);
+      debugLog('Found ESI include in comment with src:', url);
       await this.fetchAndReplaceESI(commentNode, url);
     }
   }
 
   async fetchAndReplaceESI(element, url, originalComment = null, isTryBlock = false) {
-    console.log('=== FETCHING AND REPLACING ESI ===');
-    console.log('Element:', element.nodeType === Node.COMMENT_NODE ? 'COMMENT' : 'ELEMENT');
-    console.log('URL:', url);
-    console.log('Is try block:', isTryBlock);
+    debugLog('=== FETCHING AND REPLACING ESI ===');
+    debugLog('Element:', element.nodeType === Node.COMMENT_NODE ? 'COMMENT' : 'ELEMENT');
+    debugLog('URL:', url);
+    debugLog('Is try block:', isTryBlock);
     
     // Check if element still has a parent before proceeding
     if (!element.parentNode) {
-      console.log('Element has no parent node, skipping');
+      debugLog('Element has no parent node, skipping');
       return;
     }
     
@@ -342,36 +383,60 @@ class ESIProcessor {
 
     try {
       const resolvedUrl = this.resolveUrl(url);
-      console.log(`Fetching ESI fragment ${fragmentId}: ${url} -> ${resolvedUrl}`);
+      debugLog(`Fetching ESI fragment ${fragmentId}: ${url} -> ${resolvedUrl}`);
 
       const headers = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'X-Requested-With': 'XMLHttpRequest'
       };
 
+      // Forward original request headers if enabled
+      if (this.forwardHeaders) {
+        // Get common headers that should be forwarded
+        const headersToForward = [
+          'User-Agent', 'Accept-Language', 'Accept-Encoding',
+          'Cache-Control', 'Pragma', 'DNT'
+        ];
+        
+        headersToForward.forEach(headerName => {
+          // Note: We can't access all original headers due to browser security,
+          // but we can forward the most common ones
+          if (navigator.userAgent && headerName === 'User-Agent') {
+            headers['User-Agent'] = navigator.userAgent;
+          }
+          if (navigator.language && headerName === 'Accept-Language') {
+            headers['Accept-Language'] = navigator.language;
+          }
+        });
+        
+        debugLog('Forwarding request headers enabled');
+      }
+
       // Add custom headers
       this.customHeaders.forEach(header => {
         if (header.name && header.value) {
           headers[header.name] = header.value;
-          console.log('Added custom header:', header.name, '=', header.value);
+          debugLog('Added custom header:', header.name, '=', header.value);
         }
       });
 
-      console.log('Making fetch request...');
-      const response = await fetch(resolvedUrl, {
+      debugLog('Making fetch request...');
+      const fetchOptions = {
         method: 'GET',
         headers: headers,
-        credentials: 'same-origin'
-      });
+        credentials: this.forwardCookies ? 'include' : 'same-origin'
+      };
 
-      console.log('Fetch response status:', response.status, response.statusText);
+      const response = await fetch(resolvedUrl, fetchOptions);
+
+      debugLog('Fetch response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const content = await response.text();
-      console.log(`Successfully fetched content for fragment ${fragmentId}, length:`, content.length);
+      debugLog(`Successfully fetched content for fragment ${fragmentId}, length:`, content.length);
       
       // Create replacement element
       const container = document.createElement('div');
@@ -385,13 +450,17 @@ class ESIProcessor {
       const markerComment = document.createComment(`ESI Fragment ${fragmentId}: ${url}`);
       container.appendChild(markerComment);
       
-      // Add the actual content
+      // Add the actual content with script extraction
       const contentWrapper = document.createElement('div');
       contentWrapper.style.display = 'contents';
-      contentWrapper.innerHTML = content;
+      
+      // Extract and execute scripts if enabled
+      const processedContent = await this.extractAndExecuteScripts(content, contentWrapper);
+      contentWrapper.innerHTML = processedContent;
+      
       container.appendChild(contentWrapper);
 
-      console.log('Created replacement container with ID:', fragmentMarkerId);
+      debugLog('Created replacement container with ID:', fragmentMarkerId);
 
       // Replace the ESI element
       this.replaceESIElement(element, container, originalComment, isTryBlock);
@@ -405,10 +474,10 @@ class ESIProcessor {
         timestamp: Date.now()
       });
 
-      console.log(`✓ Successfully replaced ESI fragment ${fragmentId}`);
+      debugLog(`✓ Successfully replaced ESI fragment ${fragmentId}`);
 
     } catch (error) {
-      console.error(`✗ Failed to fetch ESI fragment ${fragmentId}:`, error);
+      debugLog(`✗ Failed to fetch ESI fragment ${fragmentId}:`, error);
       
       // Create error element
       const errorDiv = document.createElement('div');
@@ -444,18 +513,18 @@ class ESIProcessor {
   }
 
   replaceESIElement(element, replacement, originalComment, isTryBlock = false) {
-    console.log('=== REPLACING ESI ELEMENT ===');
-    console.log('Element type:', element.nodeType === Node.COMMENT_NODE ? 'COMMENT' : 'ELEMENT');
-    console.log('Is try block:', isTryBlock);
-    console.log('Has parent:', !!element.parentNode);
+    debugLog('=== REPLACING ESI ELEMENT ===');
+    debugLog('Element type:', element.nodeType === Node.COMMENT_NODE ? 'COMMENT' : 'ELEMENT');
+    debugLog('Is try block:', isTryBlock);
+    debugLog('Has parent:', !!element.parentNode);
     
     if (!element.parentNode) {
-      console.error('Element has no parent node, cannot replace!');
+      debugLog('Element has no parent node, cannot replace!');
       return;
     }
 
     if (isTryBlock || (originalComment && originalComment.includes('<esi:try>'))) {
-      console.log('Handling ESI try block replacement...');
+      debugLog('Handling ESI try block replacement...');
       
       if (element.nodeType === Node.COMMENT_NODE) {
         // For comment-based try blocks, find the closing comment
@@ -463,18 +532,87 @@ class ESIProcessor {
       } else {
         // For element-based try blocks, replace the entire try element
         element.parentNode.replaceChild(replacement, element);
-        console.log('Replaced entire try block element');
+        debugLog('Replaced entire try block element');
       }
     } else {
       // Simple replacement for regular ESI tags/comments
-      console.log('Simple ESI element replacement');
+      debugLog('Simple ESI element replacement');
       element.parentNode.replaceChild(replacement, element);
-      console.log('Element replaced successfully');
+      debugLog('Element replaced successfully');
+    }
+  }
+
+  async extractAndExecuteScripts(content, container) {
+    if (!this.executeScripts) {
+      return content;
+    }
+
+    debugLog('Extracting and executing scripts from ESI content');
+    
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+      const scripts = Array.from(doc.querySelectorAll('script'));
+      
+      debugLog(`Found ${scripts.length} script tags in ESI content`);
+      
+      // Remove scripts from content
+      scripts.forEach(script => script.remove());
+      
+      // Get content without scripts
+      const contentWithoutScripts = doc.body ? doc.body.innerHTML : content;
+      
+      // Execute scripts after content is inserted
+      setTimeout(async () => {
+        for (const script of scripts) {
+          await this.executeScript(script, container);
+        }
+      }, 10);
+      
+      return contentWithoutScripts;
+    } catch (e) {
+      debugLog('Error processing scripts:', e);
+      return content;
+    }
+  }
+
+  async executeScript(scriptElement, container) {
+    debugLog('Executing script:', scriptElement.src || 'inline');
+    
+    try {
+      const newScript = document.createElement('script');
+      
+      // Copy attributes
+      Array.from(scriptElement.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      
+      if (scriptElement.src) {
+        // External script
+        return new Promise((resolve, reject) => {
+          newScript.onload = () => {
+            debugLog('External script loaded:', scriptElement.src);
+            resolve();
+          };
+          newScript.onerror = () => {
+            debugLog('External script failed:', scriptElement.src);
+            reject();
+          };
+          container.appendChild(newScript);
+        });
+      } else {
+        // Inline script
+        newScript.textContent = scriptElement.textContent;
+        container.appendChild(newScript);
+        debugLog('Inline script executed');
+      }
+    } catch (e) {
+      debugLog('Script execution error:', e);
     }
   }
 
   replaceCommentTryBlock(startComment, replacement) {
-    console.log('Replacing comment-based try block...');
+    debugLog('Replacing comment-based try block...');
     
     let walker = document.createTreeWalker(
       document.documentElement,
@@ -490,7 +628,7 @@ class ESIProcessor {
     while (walker.nextNode()) {
       const comment = walker.currentNode.nodeValue;
       if (comment && comment.includes('</esi:try>')) {
-        console.log('Found closing ESI try comment');
+        debugLog('Found closing ESI try comment');
         
         try {
           const range = document.createRange();
@@ -500,17 +638,17 @@ class ESIProcessor {
           range.deleteContents();
           range.insertNode(replacement);
           foundClosing = true;
-          console.log('Successfully replaced comment try block');
+          debugLog('Successfully replaced comment try block');
           break;
         } catch (e) {
-          console.error('Error replacing comment try block:', e);
+          debugLog('Error replacing comment try block:', e);
           break;
         }
       }
     }
     
     if (!foundClosing) {
-      console.log('No closing try comment found, using simple replacement');
+      debugLog('No closing try comment found, using simple replacement');
       if (startComment.parentNode) {
         startComment.parentNode.replaceChild(replacement, startComment);
       }
@@ -519,17 +657,17 @@ class ESIProcessor {
 }
 
 // Initialize ESI processor
-console.log('Setting up ESI processor initialization...');
+debugLog('Setting up ESI processor initialization...');
 
 function initializeWhenReady() {
   if (document.readyState === 'loading') {
-    console.log('DOM still loading, waiting for DOMContentLoaded...');
+    debugLog('DOM still loading, waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOMContentLoaded fired, creating ESIProcessor...');
+      debugLog('DOMContentLoaded fired, creating ESIProcessor...');
       new ESIProcessor();
     });
   } else {
-    console.log('DOM already loaded, creating ESIProcessor after short delay...');
+    debugLog('DOM already loaded, creating ESIProcessor after short delay...');
     setTimeout(() => {
       new ESIProcessor();
     }, 100);
@@ -538,4 +676,4 @@ function initializeWhenReady() {
 
 initializeWhenReady();
 
-console.log('ESI Content script setup complete');
+debugLog('ESI Content script setup complete');

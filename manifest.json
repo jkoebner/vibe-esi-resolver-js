@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "ESI Resolver",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Resolves Edge Side Include tags locally with statistics and custom headers",
   "author": "Joel Köbner <jkoebner@eggs.de>",
   "homepage_url": "https://github.com/jkoebner/vibe-esi-resolver-js",

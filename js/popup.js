@@ -1,129 +1,233 @@
 // Firefox compatibility layer
 const browserAPI = (typeof browser !== 'undefined') ? browser : chrome;
 
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Popup DOM loaded, browserAPI:', typeof browserAPI);
+// Debug logging utility
+let debugSettings = { esiEnabled: false, debugLogging: false };
+
+function debugLog(...args) {
+  if (debugSettings.esiEnabled && debugSettings.debugLogging) {
+    console.log(...args);
+  }
+}
+
+// Load debug settings
+async function loadDebugSettings() {
+  try {
+    const result = await browserAPI.storage.local.get(['esiEnabled', 'debugLogging']);
+    debugSettings.esiEnabled = result.esiEnabled !== false;
+    debugSettings.debugLogging = result.debugLogging || false;
+  } catch (e) {}
+}
+
+// Listen for storage changes to update debug settings
+browserAPI.storage.onChanged.addListener((changes) => {
+  if (changes.esiEnabled) debugSettings.esiEnabled = changes.esiEnabled.newValue;
+  if (changes.debugLogging) debugSettings.debugLogging = changes.debugLogging.newValue;
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadDebugSettings();
+  debugLog('Popup DOM loaded, browserAPI:', typeof browserAPI);
   const popup = new ESIPopup();
 });
 
 class ESIPopup {
   constructor() {
-    console.log('ESIPopup constructor');
+    debugLog('ESIPopup constructor');
     this.enabled = true;
     this.customHeaders = [];
+    this.forwardHeaders = false;
+    this.forwardCookies = false;
+    this.debugLogging = false;
+    this.executeScripts = false;
     this.init();
   }
 
   async init() {
-    console.log('ESIPopup init starting...');
+    debugLog('ESIPopup init starting...');
     await this.loadSettings();
     this.setupEventListeners();
     await this.loadStats();
     this.renderHeaders();
-    console.log('ESIPopup init complete');
+    debugLog('ESIPopup init complete');
   }
 
   async loadSettings() {
     try {
-      console.log('Loading settings...');
-      const result = await browserAPI.storage.local.get(['esiEnabled', 'customHeaders']);
-      console.log('Settings result:', result);
+      debugLog('Loading settings...');
+      const result = await browserAPI.storage.local.get([
+        'esiEnabled', 
+        'customHeaders', 
+        'forwardHeaders', 
+        'forwardCookies',
+        'debugLogging',
+        'executeScripts'
+      ]);
+      debugLog('Settings result:', result);
       
       this.enabled = result.esiEnabled !== false;
       this.customHeaders = result.customHeaders || [];
+      this.forwardHeaders = result.forwardHeaders || false;
+      this.forwardCookies = result.forwardCookies || false;
+      this.debugLogging = result.debugLogging || false;
+      this.executeScripts = result.executeScripts || false;
       
-      console.log('Parsed settings - enabled:', this.enabled, 'headers:', this.customHeaders.length);
+      debugLog('Parsed settings - enabled:', this.enabled, 'headers:', this.customHeaders.length, 'debug:', this.debugLogging, 'scripts:', this.executeScripts);
       
+      // Set toggle states
       const toggleElement = document.getElementById('enableToggle');
+      const forwardHeadersElement = document.getElementById('forwardHeaders');
+      const forwardCookiesElement = document.getElementById('forwardCookies');
+      const debugLoggingElement = document.getElementById('debugLogging');
+      const executeScriptsElement = document.getElementById('executeScripts');
+      
       if (toggleElement) {
         toggleElement.checked = this.enabled;
-        console.log('Toggle set to:', this.enabled);
-      } else {
-        console.error('Toggle element not found!');
+        debugLog('Toggle set to:', this.enabled);
       }
+      
+      if (forwardHeadersElement) {
+        forwardHeadersElement.checked = this.forwardHeaders;
+        debugLog('Forward headers set to:', this.forwardHeaders);
+      }
+      
+      if (forwardCookiesElement) {
+        forwardCookiesElement.checked = this.forwardCookies;
+        debugLog('Forward cookies set to:', this.forwardCookies);
+      }
+      
+      if (debugLoggingElement) {
+        debugLoggingElement.checked = this.debugLogging;
+        debugLog('Debug logging set to:', this.debugLogging);
+      }
+      
+      if (executeScriptsElement) {
+        executeScriptsElement.checked = this.executeScripts;
+        debugLog('Execute scripts set to:', this.executeScripts);
+      }
+      
     } catch (error) {
-      console.error('Error loading settings:', error);
+      debugLog('Error loading settings:', error);
     }
   }
 
   async saveSettings() {
     try {
-      console.log('Saving settings:', { esiEnabled: this.enabled, customHeaders: this.customHeaders });
+      debugLog('Saving settings:', { 
+        esiEnabled: this.enabled, 
+        customHeaders: this.customHeaders,
+        forwardHeaders: this.forwardHeaders,
+        forwardCookies: this.forwardCookies,
+        debugLogging: this.debugLogging,
+        executeScripts: this.executeScripts
+      });
       await browserAPI.storage.local.set({
         esiEnabled: this.enabled,
-        customHeaders: this.customHeaders
+        customHeaders: this.customHeaders,
+        forwardHeaders: this.forwardHeaders,
+        forwardCookies: this.forwardCookies,
+        debugLogging: this.debugLogging,
+        executeScripts: this.executeScripts
       });
-      console.log('Settings saved successfully');
+      debugLog('Settings saved successfully');
     } catch (error) {
-      console.error('Error saving settings:', error);
+      debugLog('Error saving settings:', error);
     }
   }
 
   setupEventListeners() {
-    console.log('Setting up event listeners...');
+    debugLog('Setting up event listeners...');
     
-    // Toggle switch
+    // Main toggle switch
     const toggleElement = document.getElementById('enableToggle');
     if (toggleElement) {
       toggleElement.addEventListener('change', (e) => {
-        console.log('Toggle changed to:', e.target.checked);
+        debugLog('Toggle changed to:', e.target.checked);
         this.enabled = e.target.checked;
         this.saveSettings();
-        
-        // Update icon immediately
         this.updateIcon(this.enabled);
       });
-      console.log('Toggle listener added');
-    } else {
-      console.error('Toggle element not found!');
+    }
+
+    // Forward headers toggle
+    const forwardHeadersElement = document.getElementById('forwardHeaders');
+    if (forwardHeadersElement) {
+      forwardHeadersElement.addEventListener('change', (e) => {
+        debugLog('Forward headers changed to:', e.target.checked);
+        this.forwardHeaders = e.target.checked;
+        this.saveSettings();
+      });
+    }
+
+    // Forward cookies toggle
+    const forwardCookiesElement = document.getElementById('forwardCookies');
+    if (forwardCookiesElement) {
+      forwardCookiesElement.addEventListener('change', (e) => {
+        debugLog('Forward cookies changed to:', e.target.checked);
+        this.forwardCookies = e.target.checked;
+        this.saveSettings();
+      });
+    }
+
+    // Debug logging toggle
+    const debugLoggingElement = document.getElementById('debugLogging');
+    if (debugLoggingElement) {
+      debugLoggingElement.addEventListener('change', (e) => {
+        debugLog('Debug logging changed to:', e.target.checked);
+        this.debugLogging = e.target.checked;
+        this.saveSettings();
+      });
+    }
+
+    // Execute scripts toggle
+    const executeScriptsElement = document.getElementById('executeScripts');
+    if (executeScriptsElement) {
+      executeScriptsElement.addEventListener('change', (e) => {
+        debugLog('Execute scripts changed to:', e.target.checked);
+        this.executeScripts = e.target.checked;
+        this.saveSettings();
+      });
     }
 
     // Add header button
     const addHeaderBtn = document.getElementById('addHeader');
     if (addHeaderBtn) {
       addHeaderBtn.addEventListener('click', () => {
-        console.log('Add header clicked');
+        debugLog('Add header clicked');
         this.customHeaders.push({ name: '', value: '' });
         this.renderHeaders();
         this.saveSettings();
       });
-      console.log('Add header listener added');
-    } else {
-      console.error('Add header button not found!');
     }
 
     // Clear stats button
     const clearStatsBtn = document.getElementById('clearStats');
     if (clearStatsBtn) {
       clearStatsBtn.addEventListener('click', () => {
-        console.log('Clear stats clicked');
+        debugLog('Clear stats clicked');
         this.clearStats();
       });
-      console.log('Clear stats listener added');
-    } else {
-      console.error('Clear stats button not found!');
     }
   }
 
   updateIcon(enabled) {
-    // Send message to background script to update icon
     try {
       browserAPI.runtime.sendMessage({
         action: 'updateIcon',
         enabled: enabled
       });
-      console.log('Icon update message sent:', enabled);
+      debugLog('Icon update message sent:', enabled);
     } catch (error) {
-      console.log('Could not send icon update message:', error);
+      debugLog('Could not send icon update message:', error);
     }
   }
 
   renderHeaders() {
-    console.log('Rendering headers, count:', this.customHeaders.length);
+    debugLog('Rendering headers, count:', this.customHeaders.length);
     const container = document.getElementById('headersContainer');
     
     if (!container) {
-      console.error('Headers container not found!');
+      debugLog('Headers container not found!');
       return;
     }
 
@@ -152,7 +256,7 @@ class ESIPopup {
       if (e.target.classList.contains('header-input')) {
         const index = parseInt(e.target.dataset.index);
         const field = e.target.dataset.field;
-        console.log('Header input changed:', index, field, e.target.value);
+        debugLog('Header input changed:', index, field, e.target.value);
         if (this.customHeaders[index]) {
           this.customHeaders[index][field] = e.target.value;
           this.saveSettings();
@@ -163,7 +267,7 @@ class ESIPopup {
     container.addEventListener('click', (e) => {
       if (e.target.classList.contains('remove-header')) {
         const index = parseInt(e.target.dataset.index);
-        console.log('Remove header:', index);
+        debugLog('Remove header:', index);
         this.customHeaders.splice(index, 1);
         this.renderHeaders();
         this.saveSettings();
@@ -173,20 +277,20 @@ class ESIPopup {
 
   async loadStats() {
     try {
-      console.log('Loading stats...');
+      debugLog('Loading stats...');
       const [tab] = await browserAPI.tabs.query({ active: true, currentWindow: true });
-      console.log('Current tab:', tab);
+      debugLog('Current tab:', tab);
       
       if (!tab) {
-        console.error('No active tab found');
+        debugLog('No active tab found');
         return;
       }
 
       const statsKey = `esiStats_${tab.url}`;
-      console.log('Stats key:', statsKey);
+      debugLog('Stats key:', statsKey);
       
       const result = await browserAPI.storage.local.get([statsKey]);
-      console.log('Stats result:', result);
+      debugLog('Stats result:', result);
       
       const stats = result[statsKey] || {
         total: 0,
@@ -195,7 +299,7 @@ class ESIPopup {
         fragments: []
       };
 
-      console.log('Final stats:', stats);
+      debugLog('Final stats:', stats);
 
       document.getElementById('totalTags').textContent = stats.total;
       document.getElementById('successfulTags').textContent = stats.successful;
@@ -203,16 +307,16 @@ class ESIPopup {
 
       this.renderFragmentsList(stats.fragments);
     } catch (error) {
-      console.error('Error loading stats:', error);
+      debugLog('Error loading stats:', error);
     }
   }
 
   renderFragmentsList(fragments) {
-    console.log('Rendering fragments:', fragments.length);
+    debugLog('Rendering fragments:', fragments.length);
     const fragmentsList = document.getElementById('fragmentsList');
     
     if (!fragmentsList) {
-      console.error('Fragments list not found!');
+      debugLog('Fragments list not found!');
       return;
     }
     
@@ -248,7 +352,7 @@ class ESIPopup {
     fragmentsList.addEventListener('click', (e) => {
       if (e.target.classList.contains('jump-to-fragment') || e.target.classList.contains('fragment-url')) {
         const fragmentId = e.target.dataset.fragmentId;
-        console.log('Jump to fragment:', fragmentId);
+        debugLog('Jump to fragment:', fragmentId);
         if (fragmentId) {
           this.jumpToFragment(parseInt(fragmentId));
         }
@@ -258,7 +362,7 @@ class ESIPopup {
 
   async jumpToFragment(fragmentId) {
     try {
-      console.log('Jumping to fragment:', fragmentId);
+      debugLog('Jumping to fragment:', fragmentId);
       const [tab] = await browserAPI.tabs.query({ active: true, currentWindow: true });
       if (!tab) return;
 
@@ -268,13 +372,13 @@ class ESIPopup {
       });
       window.close();
     } catch (error) {
-      console.error('Could not jump to fragment:', error);
+      debugLog('Could not jump to fragment:', error);
     }
   }
 
   async clearStats() {
     try {
-      console.log('Clearing stats...');
+      debugLog('Clearing stats...');
       const [tab] = await browserAPI.tabs.query({ active: true, currentWindow: true });
       if (!tab) return;
 
@@ -285,10 +389,10 @@ class ESIPopup {
       try {
         await browserAPI.tabs.sendMessage(tab.id, { action: 'clearStats' });
       } catch (e) {
-        console.log('Could not send clear message to content script');
+        debugLog('Could not send clear message to content script');
       }
     } catch (error) {
-      console.error('Error clearing stats:', error);
+      debugLog('Error clearing stats:', error);
     }
   }
 
