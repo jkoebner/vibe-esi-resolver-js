@@ -48,7 +48,6 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "esi-resolver@jkoebner.eggs.de",
       "data_collection_permissions": {
         "required": ["none"],
         "web_activity": false,
